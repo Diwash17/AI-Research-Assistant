@@ -172,7 +172,7 @@ Open `http://localhost:8000/static/index.html` after starting the server. The fo
 
 ## System Demo
 
-**Swagger UI — interactive API docs:**
+** UI **
 
 ![Swagger endpoints](architecture/Screenshot%202026-08-11%20at%2013.15.50.png)
 
