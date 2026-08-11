@@ -2,6 +2,7 @@
 import numpy as np
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from app.config import GOOGLE_API_KEY
 from app.schemas.models import Finding
 
 # ---------------------------------------------------------------------------
@@ -12,9 +13,19 @@ SIMILARITY_THRESHOLD = 0.92  # findings above this cosine similarity are duplica
 
 _EMBEDDING_MODEL = "gemini-embedding-001"
 
-# Module-level embedder — one instance, picks up GOOGLE_API_KEY from env
-# (already loaded by app.config at startup).
-_embedder = GoogleGenerativeAIEmbeddings(model=_EMBEDDING_MODEL)
+# Lazy singleton — created on first call so import-time env loading order
+# doesn't matter and the API key is always available from app.config.
+_embedder: GoogleGenerativeAIEmbeddings | None = None
+
+
+def _get_embedder() -> GoogleGenerativeAIEmbeddings:
+    global _embedder
+    if _embedder is None:
+        _embedder = GoogleGenerativeAIEmbeddings(
+            model=_EMBEDDING_MODEL,
+            google_api_key=GOOGLE_API_KEY,
+        )
+    return _embedder
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +78,7 @@ def dedup_findings(findings: list[Finding]) -> list[Finding]:
     texts = [f.content for f in findings]
 
     # One batched call — GoogleGenerativeAIEmbeddings.embed_documents accepts a list
-    raw_embeddings: list[list[float]] = _embedder.embed_documents(texts)
+    raw_embeddings: list[list[float]] = _get_embedder().embed_documents(texts)
     vectors = np.array(raw_embeddings, dtype=np.float32)  # shape (N, D)
 
     sim_matrix = _cosine_similarity_matrix(vectors)  # shape (N, N)
