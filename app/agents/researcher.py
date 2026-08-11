@@ -2,18 +2,10 @@
 import asyncio
 import logging
 
-from langchain_tavily import TavilySearch
-
 from app.schemas.models import Finding
+from app.tools.tavily_search import get_tavily_tool
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Tavily tool (module-level; picks up TAVILY_API_KEY from the environment
-# automatically — loaded by app.config at startup).
-# ---------------------------------------------------------------------------
-
-_tavily = TavilySearch(max_results=3)
 
 
 # ---------------------------------------------------------------------------
@@ -32,7 +24,7 @@ async def _search_subtask(subtask: str) -> list[Finding]:
     """
     try:
         # ainvoke calls _arun internally; returns the same dict as invoke
-        response: dict = await _tavily.ainvoke({"query": subtask})
+        response: dict = await get_tavily_tool().ainvoke({"query": subtask})
     except Exception:
         logger.exception("Tavily search failed for subtask %r", subtask)
         return []
