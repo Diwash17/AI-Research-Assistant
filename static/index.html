@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 40px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus { border-color: #4f46e5; }
+
+    button.primary {
+      padding: 10px 22px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    button.primary:hover:not(:disabled) { background: #4338ca; }
+    button.primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    /* ── Loading ── */
+    #loading {
+      display: none;
+      margin-top: 28px;
+      padding: 20px;
+      background: #f0f0ff;
+      border-radius: 8px;
+      border: 1px solid #c7d2fe;
+    }
+
+    .spinner-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #c7d2fe;
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-headline {
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #3730a3;
+    }
+
+    #status-msg {
+      font-size: 0.85rem;
+      color: #6366f1;
+      min-height: 1.2em;
+      transition: opacity 0.4s;
+    }
+
+    /* ── Result ── */
+    #result {
+      display: none;
+      margin-top: 28px;
+    }
+
+    .result-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      color: #166534;
+    }
+
+    .summary-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #374151;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+    }
+
+    .download-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    a.dl-btn {
+      display: inline-block;
+      padding: 9px 18px;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    a.dl-btn.md {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    a.dl-btn.md:hover { background: #d1fae5; }
+
+    a.dl-btn.pdf {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+
+    a.dl-btn.pdf:hover { background: #dbeafe; }
+
+    /* ── Error ── */
+    #error {
+      display: none;
+      margin-top: 28px;
+      padding: 14px 16px;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 8px;
+      color: #9f1239;
+      font-size: 0.9rem;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 28px 0 0;
+    }
+
+    .new-search {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .new-search a {
+      color: #4f46e5;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>AI Research Assistant</h1>
+    <p class="subtitle">Enter a topic and get a structured research report with citations.</p>
+
+    <form id="research-form">
+      <div class="form-row">
+        <input
+          type="text"
+          id="topic-input"
+          placeholder="e.g. Impact of remote work on productivity"
+          autocomplete="off"
+          required
+        />
+        <button type="submit" class="primary" id="submit-btn">Research</button>
+      </div>
+    </form>
+
+    <!-- Loading -->
+    <div id="loading">
+      <div class="spinner-row">
+        <div class="spinner"></div>
+        <span class="loading-headline">Researching your topic…</span>
+      </div>
+      <div id="status-msg">Planning research approach…</div>
+      <p style="font-size:0.8rem;color:#818cf8;margin-top:8px;">
+        This involves planning, web search, writing, and a quality review — it may take 1–3 minutes.
+      </p>
+    </div>
+
+    <!-- Result -->
+    <div id="result">
+      <p class="result-title">✓ Report ready</p>
+      <div class="summary-box" id="summary-text"></div>
+      <div class="download-row">
+        <a class="dl-btn md" id="md-link" href="#" download>⬇ Download Markdown</a>
+        <a class="dl-btn pdf" id="pdf-link" href="#" download>⬇ Download PDF</a>
+      </div>
+      <hr class="divider" />
+      <p class="new-search">Want to research another topic? <a onclick="resetForm()">Start over</a></p>
+    </div>
+
+    <!-- Error -->
+    <div id="error">
+      <strong>Something went wrong.</strong>
+      <span id="error-msg"></span>
+    </div>
+  </div>
+
+  <script>
+    const STATUS_MESSAGES = [
+      "Planning research approach…",
+      "Searching the web for sources…",
+      "Gathering and filtering findings…",
+      "Writing the report…",
+      "Reviewing quality and coverage…",
+      "Finalising report…",
+    ];
+
+    let statusInterval = null;
+    let statusIndex = 0;
+
+    function startStatusRotation() {
+      statusIndex = 0;
+      document.getElementById("status-msg").textContent = STATUS_MESSAGES[0];
+      statusInterval = setInterval(() => {
+        statusIndex = (statusIndex + 1) % STATUS_MESSAGES.length;
+        const el = document.getElementById("status-msg");
+        el.style.opacity = "0";
+        setTimeout(() => {
+          el.textContent = STATUS_MESSAGES[statusIndex];
+          el.style.opacity = "1";
+        }, 400);
+      }, 18000); // rotate every 18 seconds
+    }
+
+    function stopStatusRotation() {
+      clearInterval(statusInterval);
+      statusInterval = null;
+    }
+
+    function show(id) { document.getElementById(id).style.display = "block"; }
+    function hide(id) { document.getElementById(id).style.display = "none"; }
+
+    function resetForm() {
+      hide("result");
+      hide("error");
+      hide("loading");
+      document.getElementById("topic-input").value = "";
+      document.getElementById("submit-btn").disabled = false;
+      document.getElementById("topic-input").focus();
+    }
+
+    document.getElementById("research-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const topic = document.getElementById("topic-input").value.trim();
+      if (!topic) return;
+
+      // Reset previous state
+      hide("result");
+      hide("error");
+
+      // Show loading
+      show("loading");
+      document.getElementById("submit-btn").disabled = true;
+      startStatusRotation();
+
+      try {
+        const res = await fetch("/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || `Server error ${res.status}`);
+        }
+
+        // Populate result
+        document.getElementById("summary-text").textContent = data.summary || "(no summary)";
+        document.getElementById("md-link").href = data.markdown_url;
+        document.getElementById("pdf-link").href = data.pdf_url;
+
+        hide("loading");
+        show("result");
+
+      } catch (err) {
+        hide("loading");
+        document.getElementById("error-msg").textContent = " " + (err.message || "Unknown error.");
+        show("error");
+        document.getElementById("submit-btn").disabled = false;
+      } finally {
+        stopStatusRotation();
+      }
+    });
+  </script>
+</body>
+</html>

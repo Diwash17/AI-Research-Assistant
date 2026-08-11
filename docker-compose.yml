@@ -1,0 +1,23 @@
+services:
+  research-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "8000:8000"
+
+    # Load API keys from .env — never bake secrets into the image
+    env_file:
+      - .env
+
+    volumes:
+      # Persist generated reports (markdown + PDF) on the host
+      - ./reports:/app/reports
+
+      # Mount static/ so index.html changes are reflected without rebuilding
+      # (remove this mount if you prefer to bake static/ into the image)
+      - ./static:/app/static
+
+    # Restart automatically on crash (useful for long-running server)
+    restart: unless-stopped
