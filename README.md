@@ -172,11 +172,11 @@ Open `http://localhost:8000/static/index.html` after starting the server. The fo
 
 ## System Demo
 
-** UI **
+** Live research run via API **
 
 ![Swagger endpoints](architecture/Screenshot%202026-08-11%20at%2013.15.50.png)
 
-**Live research run via API:**
+** User Interface (UI) :**
 
 ![Research request and response](architecture/Screenshot%202026-08-11%20at%2013.15.59.png)
 
