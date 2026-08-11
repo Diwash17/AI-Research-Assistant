@@ -5,3 +5,7 @@ __pycache__/
 reports/*.md
 reports/*.pdf
 .kiro/
+.DS_Store
+
+
+
