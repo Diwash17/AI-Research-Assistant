@@ -39,7 +39,7 @@ langgraph-sdk==0.4.2
 langsmith==0.10.17
 markdown==3.10.3
 multidict==6.7.1
-numpy==2.5.2
+numpy==2.2.6
 orjson==3.11.9
 ormsgpack==1.12.2
 packaging==26.3

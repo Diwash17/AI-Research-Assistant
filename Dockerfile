@@ -9,11 +9,9 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
-    # fontconfig is needed so WeasyPrint can find system fonts
     fontconfig \
-    # clean up apt cache to keep the image small
  && rm -rf /var/lib/apt/lists/*
 
 # ── Python dependencies ──────────────────────────────────────────────────────
