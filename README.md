@@ -20,25 +20,13 @@ Results are saved as `.md` and `.pdf` files and returned via JSON response.
 
 ## Architecture
 
-![Architecture](architecture_diagram.svg)
+**System overview** — client, API, orchestrator, and export layer:
 
-```mermaid
-flowchart TD
-    A[Client\ncurl or Web UI] --> B[FastAPI\nPOST /research]
-    B --> C
+![System Architecture](architecture/system_architecture.svg)
 
-    subgraph LG[LangGraph Orchestrator — shared ResearchState]
-        C[Planner\nSplits topic into subtasks]
-        C --> D[Researcher\nTavily search per subtask — concurrent]
-        D --> E[Dedup + Synthesis\nDrops near-duplicate findings]
-        E --> F[Writer\nDrafts structured report]
-        F --> G[Reviewer\nScores citations and coverage]
-        G -->|if incomplete score < 7.0 and revisions < 3| F
-    end
+**Agent pipeline** — the five-stage LangGraph flow in detail:
 
-    G -->|approved or threshold reached| H[Export\nMarkdown + PDF via WeasyPrint]
-    H --> I[Reports\nSaved and returned to client]
-```
+![Agent Pipeline](architecture/agent_pipeline.svg)
 
 ---
 
@@ -50,7 +38,7 @@ flowchart TD
 - **Structured report generation** — every report contains exactly: Executive Summary, Key Findings, Detailed Analysis, Conclusion, References
 - **APA-style citations** — inline `[N]` references with formatted References section
 - **Export to Markdown and PDF** — files are timestamped, slugified, and persisted to `reports/`
-- **Quality review loop** — Reviewer scores drafts on 5 dimensions; revision triggered when score < 7.0, capped at 3 cycles
+- **Quality review loop** — Reviewer scores drafts on 5 dimensions; revision triggered when score < 7.0, capped at 2 cycles
 
 ---
 
@@ -109,7 +97,7 @@ uvicorn app.main:app --reload
 ### 3b. Run with Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 The server starts at `http://localhost:8000` either way.
@@ -152,7 +140,7 @@ curl http://localhost:8000/reports/impact-of-remote-work-on-small-team-productiv
 | `GET` | `/health` | Liveness check — returns `{"status": "ok"}` |
 | `POST` | `/research` | Run the full pipeline for a topic |
 | `GET` | `/reports/<filename>` | Download a generated `.md` or `.pdf` file |
-| `GET` | `/` | Web UI (form-based interface) |
+| `GET` | `/static/index.html` | Web UI (form-based interface) |
 | `GET` | `/docs` | Swagger UI — interactive API explorer |
 
 ### POST /research
@@ -172,13 +160,25 @@ curl http://localhost:8000/reports/impact-of-remote-work-on-small-team-productiv
 }
 ```
 
-**Errors:** returns `422` for empty topic, `500` with `{"detail": "..."}` on pipeline failure.
+**Errors:** returns `422` for an invalid/empty topic, `500` with `{"detail": "..."}` on pipeline failure.
 
 ---
 
 ## Web UI
 
-Open `http://localhost:8000` after starting the server. The form at `static/index.html` lets you enter a topic, shows rotating status messages during the 1–3 minute pipeline run, and displays download links on completion.
+Open `http://localhost:8000/static/index.html` after starting the server. The form lets you enter a topic, shows a status message during the 1–3 minute pipeline run, and displays download links for both the Markdown and PDF report on completion.
+
+---
+
+## System Demo
+
+**Swagger UI — interactive API docs:**
+
+![Swagger endpoints](architecture/Screenshot%202026-08-11%20at%2013.15.50.png)
+
+**Live research run via API:**
+
+![Research request and response](architecture/Screenshot%202026-08-11%20at%2013.15.59.png)
 
 ---
 
@@ -204,11 +204,14 @@ research-agent/
 │   ├── schemas/
 │   │   └── models.py        # Finding (Pydantic) + ResearchState (TypedDict)
 │   ├── tools/
-│   │   └── tavily_search.py # TavilySearch factory (get_tavily_tool)
+│   │   └── tavily_search.py # TavilySearch factory
 │   ├── config.py            # env loading, get_llm() factory
-│   └── main.py              # FastAPI app, static mounts
+│   └── main.py              # FastAPI app, static + reports mounts
 ├── static/
 │   └── index.html           # single-file web UI
+├── architecture/
+│   ├── system_architecture.svg
+│   └── agent_pipeline.svg
 ├── reports/                 # generated .md and .pdf files (gitignored)
 ├── Dockerfile
 ├── docker-compose.yml
@@ -220,8 +223,8 @@ research-agent/
 
 ## Notes
 
-**Revision loop** — after the Writer produces a draft, the Reviewer scores it across five dimensions (completeness, evidence, citation format, readability, factual consistency) and checks that every planned subtask is addressed. If the overall score is below `7.0` and no hard cap has been reached, the draft is sent back for revision. The loop is capped at `MAX_REVISIONS = 3` to prevent infinite cycles. A score ≥ 7.0 accepts the draft even if the Reviewer hasn't formally approved it.
+**Revision loop** — after the Writer produces a draft, the Reviewer scores it across five dimensions (completeness, evidence, citation format, readability, factual consistency) and checks that every planned subtask is addressed. If the overall score is below `7.0` and no hard cap has been reached, the draft is sent back for revision. The loop is capped at `MAX_REVISIONS = 2` to prevent runaway cycles. A score ≥ 7.0 accepts the draft even if the Reviewer hasn't formally approved it.
 
-**Deduplication threshold** — findings with cosine similarity above `SIMILARITY_THRESHOLD = 0.92` (using `gemini-embedding-001` embeddings) are dropped, keeping the first occurrence. Tune this constant in `app/agents/dedup.py` if you want stricter or looser deduplication.
+**Deduplication threshold** — findings with cosine similarity above `SIMILARITY_THRESHOLD = 0.92` (using `gemini-embedding-001` embeddings) are dropped, keeping the first occurrence. Tune this constant in `app/agents/dedup.py` for stricter or looser deduplication.
 
-**Pipeline duration** — expect 1–3 minutes per request. The bottleneck is sequential LLM calls (plan → write → review) plus concurrent Tavily searches. The web UI shows cosmetic status messages to indicate progress.
+**Pipeline duration** — expect 1–3 minutes per request. The bottleneck is sequential LLM calls (plan → write → review) plus concurrent Tavily searches.
